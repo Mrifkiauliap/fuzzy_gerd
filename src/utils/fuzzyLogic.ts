@@ -1,97 +1,62 @@
-import { FuzzyResult, SurveyAnswer } from '@/types/gerd'
+type FuzzyValue = 'rendah' | 'sedang' | 'tinggi'
 
-// Membership functions for fuzzy sets
-const membershipNever = (value: number): number => {
-  if (value <= 0) return 1
-  if (value >= 4) return 0
-  return (4 - value) / 4
+interface GejalaInput {
+  rasaTerbakarDada: number
+  nyeriUluHati: number
+  mual: number
+  seringSendawa: number
+  sulitMenelan: number
 }
 
-const membershipOften = (value: number): number => {
-  if (value <= 4) return 0
-  if (value >= 7) return 0
-  if (value <= 5.5) return (value - 4) / 1.5
-  return (7 - value) / 1.5
+interface FuzzyResult {
+  nilai: number
+  kategori: FuzzyValue
 }
 
-const membershipAlways = (value: number): number => {
-  if (value <= 7) return 0
-  if (value >= 10) return 1
-  return (value - 7) / 3
+// --- Helper: Membership Function ---
+function trapezoid(x: number, a: number, b: number, c: number, d: number): number {
+  if (x <= a || x >= d) return 0
+  else if (x >= b && x <= c) return 1
+  else if (x > a && x < b) return (x - a) / (b - a)
+  else if (x > c && x < d) return (d - x) / (d - c)
+  return 0
 }
 
-// Calculate fuzzy logic result
-export const calculateFuzzyResult = (answers: SurveyAnswer[]): FuzzyResult => {
-  // Calculate average score
-  const totalScore = answers.reduce((sum, answer) => sum + answer.value, 0)
-  const averageScore = totalScore / answers.length
-
-  // Calculate membership degrees
-  const neverDegree = membershipNever(averageScore)
-  const oftenDegree = membershipOften(averageScore)
-  const alwaysDegree = membershipAlways(averageScore)
-
-  // Determine risk level based on highest membership degree
-  let riskLevel: 'low' | 'medium' | 'high'
-  let riskScore: number
-
-  if (neverDegree > oftenDegree && neverDegree > alwaysDegree) {
-    riskLevel = 'low'
-    riskScore = averageScore * 10
-  } else if (alwaysDegree > oftenDegree && alwaysDegree > neverDegree) {
-    riskLevel = 'high'
-    riskScore = 70 + (averageScore - 7) * 10
-  } else {
-    riskLevel = 'medium'
-    riskScore = 40 + (averageScore - 4) * 10
-  }
-
-  // Generate recommendations based on risk level
-  const recommendations = generateRecommendations(riskLevel, answers)
-
-  return {
-    riskLevel,
-    riskScore: Math.round(riskScore),
-    recommendations,
-  }
+// --- Himpunan Fuzzy (0–10) ---
+function fuzzyRendah(x: number) {
+  return trapezoid(x, 0, 0, 3, 5)
 }
 
-const generateRecommendations = (
-  riskLevel: 'low' | 'medium' | 'high',
-  answers: SurveyAnswer[],
-): string[] => {
-  const baseRecommendations = [
-    'Hindari makanan pedas, asam, dan berlemak tinggi',
-    'Makan dengan porsi kecil tapi lebih sering',
-    'Hindari makan 2-3 jam sebelum tidur',
-    'Tinggikan posisi kepala saat tidur',
-    'Kurangi konsumsi kafein dan alkohol',
-  ]
+function fuzzySedang(x: number) {
+  return trapezoid(x, 3, 5, 5, 7)
+}
 
-  if (riskLevel === 'high') {
-    return [
-      '⚠️ Segera konsultasikan dengan dokter spesialis gastroenterologi',
-      'Pertimbangkan untuk melakukan endoskopi',
-      'Mungkin diperlukan pengobatan dengan PPI (Proton Pump Inhibitor)',
-      ...baseRecommendations,
-      'Hindari pakaian ketat di area perut',
-      'Kelola stres dengan baik',
-    ]
-  } else if (riskLevel === 'medium') {
-    return [
-      'Disarankan berkonsultasi dengan dokter',
-      'Pertimbangkan penggunaan antasida atau H2 blocker',
-      ...baseRecommendations,
-      'Jaga berat badan ideal',
-      'Hindari merokok',
-    ]
-  } else {
-    return [
-      'Terus jaga pola hidup sehat',
-      'Monitor gejala secara berkala',
-      ...baseRecommendations.slice(0, 3),
-      'Olahraga teratur',
-      'Kelola stres dengan baik',
-    ]
-  }
+function fuzzyTinggi(x: number) {
+  return trapezoid(x, 6, 8, 10, 10)
+}
+
+// --- Inferensi Rules (aturan dasar) ---
+// Semakin banyak gejala tinggi, semakin tinggi risiko GERD
+function inferensi(input: GejalaInput): FuzzyResult {
+  const values = Object.values(input)
+  const rata2 = values.reduce((a, b) => a + b, 0) / values.length
+
+  // Derajat keanggotaan untuk hasil akhir
+  const μRendah = fuzzyRendah(rata2)
+  const μSedang = fuzzySedang(rata2)
+  const μTinggi = fuzzyTinggi(rata2)
+
+  // Defuzzifikasi sederhana (metode centroid diskret)
+  const crisp = (μRendah * 3 + μSedang * 6 + μTinggi * 9) / (μRendah + μSedang + μTinggi || 1)
+
+  let kategori: FuzzyValue = 'rendah'
+  if (crisp >= 7) kategori = 'tinggi'
+  else if (crisp >= 4) kategori = 'sedang'
+
+  return { nilai: Number(crisp.toFixed(2)), kategori }
+}
+
+// --- Fungsi Utama ---
+export function deteksiGERD(input: GejalaInput): FuzzyResult {
+  return inferensi(input)
 }
