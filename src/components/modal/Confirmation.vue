@@ -23,7 +23,10 @@ const props = defineProps<{
       aria-modal="true"
     >
       <!-- Overlay -->
-      <div class="fixed inset-0 bg-gray-500/60 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
+      <div
+        class="fixed inset-0 bg-gray-500/60 backdrop-blur-sm transition-opacity"
+        aria-hidden="true"
+      ></div>
 
       <!-- Modal -->
       <div
@@ -57,10 +60,7 @@ const props = defineProps<{
 
             <!-- Text -->
             <div class="flex-1">
-              <h3
-                class="text-lg sm:text-xl font-semibold text-gray-900"
-                id="modal-title"
-              >
+              <h3 class="text-lg sm:text-xl font-semibold text-gray-900" id="modal-title">
                 {{ confirmTitle }}
               </h3>
               <p class="mt-2 text-sm sm:text-base text-gray-600" v-html="confirmMessage"></p>
